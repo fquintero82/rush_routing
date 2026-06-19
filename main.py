@@ -2,6 +2,7 @@ import cupy as cp
 import numpy as np
 from numba import cuda, int32, float32
 import cupyx as cpx
+import pandas as pd
 
 @cuda.jit
 def reach_limit_kernel(downstream, length, Dmax, reach_limit, distance_accum):
@@ -38,6 +39,27 @@ def reach_limit_kernel(downstream, length, Dmax, reach_limit, distance_accum):
     #reach_limit[i] = j
     reach_limit[i] = prev_j
     distance_accum[i] = dist
+
+def _get_downstream(df,idx_upstream_links):
+    
+    n = len(df)
+    nup = df['nup'].to_numpy()
+    idx = df['idx'].to_numpy()
+    downstream = np.ones(shape=(n),dtype=np.int32)*(-1)
+    for i in range(len(df)):
+        if nup[i]>0:
+            for j in range(nup[i]):
+                val = int(idx_upstream_links[i,j])
+                if val > 0:
+                    try:
+                        upstream = idx[val]
+                    except IndexError as e:
+                        print('row ',i)
+                        print('val ',val)
+                        print(e)
+                    downstream[upstream] = i
+    return downstream
+
 
 def create_sparse_matrix_upstream_velocity(reach_limit,n):
     col = [] #upstream
@@ -161,6 +183,30 @@ def test_routing5():
 
 
 if __name__ == '__main__':
-    test_routing5()
-    test_reach_limit()
-    
+    df = pd.read_csv('southfork_rush_tiles.csv')
+    idx_upstream_link = df[['up1','up2','up3','up4']].to_numpy(dtype=np.int32)
+    threads_per_block = 128
+    blocks_per_grid = (len(df) + threads_per_block - 1) // threads_per_block
+    downstream = _get_downstream(df,idx_upstream_link)
+    inflow = np.ones(shape=(len(df),10),dtype=np.float32) #example inflow for 10 time steps
+    current_state = cp.asarray(np.zeros(shape=(len(df)),dtype=np.float32)) #initial state of the system
+    velocity = np.float32(10.0) #m/s
+    channel_length = df['channel_length'].to_numpy(dtype=np.float32)
+    dt = 3600.0
+    Dmax = np.float32(velocity * dt)
+    d_reach_limit = cuda.device_array(len(df), dtype=np.int32)
+    d_distance_accum = cuda.device_array(len(df), dtype=np.float32)
+
+    reach_limit_kernel[blocks_per_grid, threads_per_block](
+        cuda.to_device(downstream),
+        channel_length,
+        Dmax,
+        d_reach_limit,
+        d_distance_accum
+        )
+    reach_limit = d_reach_limit.copy_to_host()
+    smuv = create_sparse_matrix_upstream_velocity(reach_limit,len(df))
+    x,x2 = routing5(current_state,inflow,velocity,channel_length,smuv,DT=3600)
+    print('routing5 executed successfully')
+
+
