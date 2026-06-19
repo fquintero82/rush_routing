@@ -8,7 +8,7 @@ This configuration runs on a Windows machine using Nvidia RTX 2000
 
    ```bash
    conda env remove -y -n rush-routing
-   conda create -n rush-routing -c conda-forge python=3.11 cupy numba cuda-version=12.6 -y
+   conda create -n rush-routing -c conda-forge python=3.11 cupy numba pandas cuda-version=12.6 -y
    conda activate rush-routing
    conda install -c conda-forge cuda-nvcc
    ```

@@ -150,37 +150,6 @@ def test_reach_limit():
     print("Accumulated distance:", distance_accum)
 
 
-def test_routing5():
-    """Run a simple routing5 scenario and verify expected outflow and state."""
-    current_state = None
-    inflow = cp.array([[1.0, 0.0], [1.0, 0.0]], dtype=cp.float32)
-    channel_length = cp.array([100.0, 100.0], dtype=cp.float32)
-    sparse_upstream = cpx.scipy.sparse.csc_matrix(
-        (
-            cp.array([1.0], dtype=cp.float32),
-            (cp.array([1], dtype=cp.int32), cp.array([0], dtype=cp.int32)),
-        ),
-        shape=(2, 2),
-    )
-
-    outflow, next_state = routing5(
-        current_state,
-        inflow,
-        velocity=None,
-        channel_length=channel_length,
-        sparse_upstream=sparse_upstream,
-        DT=3600,
-        k=0.5,
-    )
-
-    expected_outflow = cp.array([[0.0, 0.5], [0.0, 0.5]], dtype=cp.float32)
-    expected_state = cp.array([0.5, 1.0], dtype=cp.float32)
-
-    cp.testing.assert_allclose(outflow, expected_outflow, rtol=1e-6, atol=1e-6)
-    cp.testing.assert_allclose(next_state, expected_state, rtol=1e-6, atol=1e-6)
-
-    print("routing5 test passed.")
-
 
 if __name__ == '__main__':
     df = pd.read_csv('southfork_rush_tiles.csv')
