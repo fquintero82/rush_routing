@@ -81,9 +81,16 @@ def create_sparse_matrix_upstream_velocity(reach_limit,n):
     sparse_upstream = cpx.scipy.sparse.csc_matrix((cpdata, (cprow,cpcol )), shape=(n, n))
     return sparse_upstream
 
-def routing5(current_state,inflow,velocity,channel_length,sparse_upstream,DT=3600,k=None):
+def routing5(timesteps,
+             current_state:cp.ndarray,
+             inflow:np.ndarray,
+             velocity:float,
+             channel_length:np.ndarray,
+             sparse_upstream,DT=3600,k=None):
     N = inflow.shape[0] #number of channels
-    T = inflow.shape[1] #number of time steps
+    len_inflow = inflow.shape[1] #
+    outflow = cp.array(np.zeros(shape=(N,timesteps),dtype=cp.float32))
+
     # k is a linear reservoir coefficient, between 0 and 1. If None, it is calculated based on velocity and channel length.
     if k is None:
         k = np.exp(-1*velocity / channel_length*DT)
@@ -98,10 +105,12 @@ def routing5(current_state,inflow,velocity,channel_length,sparse_upstream,DT=360
     if current_state is None:
         current_state = cp.array(np.zeros(shape=(N),dtype=cp.float32))
 
-    outflow = cp.array(np.zeros(shape=(N,T),dtype=cp.float32))
-    for t in range(0,T):
+    for t in range(0,timesteps):
         
-        inflow_at_t = inflow[:,t]
+        if t>=len_inflow:
+            inflow_at_t = cp.zeros(shape=(N),dtype=cp.float32)
+        else:
+            inflow_at_t = inflow[:,t]
         #q_t = current_state * (1-coef) # flow that leaves the channel, m3/s
         q_t = current_state * k
         #print('suma q_t')
