@@ -90,6 +90,7 @@ def routing5(timesteps,
     N = inflow.shape[0] #number of channels
     len_inflow = inflow.shape[1] #
     outflow = cp.array(np.zeros(shape=(N,timesteps),dtype=cp.float32))
+    routing_initial = cp.array(np.zeros(shape=(N,timesteps),dtype=cp.float32))
 
     # k is a linear reservoir coefficient, between 0 and 1. If None, it is calculated based on velocity and channel length.
     if k is None:
@@ -105,7 +106,7 @@ def routing5(timesteps,
     if current_state is None:
         current_state = cp.array(np.zeros(shape=(N),dtype=cp.float32))
 
-    for t in range(0,timesteps):
+    for t in range(timesteps):
         
         if t>=len_inflow:
             inflow_at_t = cp.zeros(shape=(N),dtype=cp.float32)
@@ -123,8 +124,8 @@ def routing5(timesteps,
         outflow[:,t] = q_t
         #outflow[:,t] = current_state.copy()
         current_state = cp.asarray(current_state) + cp.asarray(inflow_at_t)
-
-    return(outflow,current_state)
+        routing_initial[:,t] = current_state.copy()
+    return(outflow,current_state,routing_initial)
 
 
 
